@@ -1,47 +1,51 @@
-#include <wiringPi.h>
-#include <iostream>
-#include <thread>
-#include <chrono>
+// #include <wiringPi.h>
+// #include <iostream>
+#include "pico/stdlib.h"
+#include "hardware/pwm.h"
 
+// Replace std::this_thread::sleep_for with sleep_ms from the Pico SDK
 void sleep_seconds(int seconds) {
-    std::this_thread::sleep_for(std::chrono::seconds(seconds));
+    sleep_ms(seconds * 1000); // Convert seconds to milliseconds
 }
 
 int main() {
-    const int LED_PIN = 1; 
-    const int PWM_FREQUENCY = 50;
-    const int PWM_RANGE = 1000; 
-    const int INITIAL_DUTYCYCLE = 0; 
+    const int LED_PIN = 1; // GPIO pin number
+    const int PWM_FREQUENCY = 50; // PWM frequency in Hz
+    const int PWM_RANGE = 1000; // PWM range
+    const int INITIAL_DUTYCYCLE = 0; // Initial duty cycle
 
-    // So we initialize the WiringPi instance and set the pin mode.
-    if (wiringPiSetup() == -1) {
-        std::cerr << "Failed to initialize WiringPi!" << std::endl;
-        return 1;
-    }
+    // Initialize the Pico SDK
+    stdio_init_all();
 
-    pinMode(LED_PIN, PWM_OUTPUT); 
-    pwmSetMode(PWM_MODE_MS); // PWM mode mark-space
-    pwmSetRange(PWM_RANGE); 
-    pwmSetClock(192); // Clock divisor (we might need to adjust this)
+    // Initialize GPIO for PWM
+    gpio_set_function(LED_PIN, GPIO_FUNC_PWM); // Set GPIO to PWM function
+    uint slice_num = pwm_gpio_to_slice_num(LED_PIN); // Get PWM slice
+    uint channel_num = pwm_gpio_to_channel(LED_PIN); // Get PWM channel
 
-    // Init duty cycle and freq
-    pwmWrite(LED_PIN, INITIAL_DUTYCYCLE);
+    // Configure PWM
+    pwm_config config = pwm_get_default_config(); // Get default PWM config
+    pwm_config_set_clkdiv(&config, 4.f); // Set clock divider (adjust for frequency)
+    pwm_config_set_wrap(&config, PWM_RANGE); // Set PWM range
+    pwm_init(slice_num, &config, true); // Initialize PWM
+
+    // Set initial duty cycle
+    pwm_set_chan_level(slice_num, channel_num, INITIAL_DUTYCYCLE);
     sleep_seconds(1);
 
-    // 75/1000 = 7.5% duty cycle
-    pwmWrite(LED_PIN, 75);
+    // Set duty cycle to 75 (7.5%)
+    pwm_set_chan_level(slice_num, channel_num, 75);
     sleep_seconds(3);
 
-    // +ve rotation: set to 10% duty cycle
-    pwmWrite(LED_PIN, 100);
+    // Set duty cycle to 100 (10%) for positive rotation
+    pwm_set_chan_level(slice_num, channel_num, 100);
     sleep_seconds(15);
 
-    // -ve rotation: set to 6% duty cycle
-    pwmWrite(LED_PIN, 60);
+    // Set duty cycle to 60 (6%) for reverse rotation
+    pwm_set_chan_level(slice_num, channel_num, 60);
     sleep_seconds(5);
 
-    // Neutral duty cycle (7.5%)
-    pwmWrite(LED_PIN, 75);
+    // Set duty cycle back to 75 (7.5%)
+    pwm_set_chan_level(slice_num, channel_num, 75);
     sleep_seconds(5);
 
     return 0;
