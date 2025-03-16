@@ -1,68 +1,86 @@
-cmake_minimum_required(VERSION 3.22)
+# Generated Cmake Pico project file
 
-set(CMAKE_VERBOSE_MAKEFILE ON)
+cmake_minimum_required(VERSION 3.13)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Print the C++ standard being used
-message(STATUS "C++ standard: ${CMAKE_CXX_STANDARD}")
+# Initialise pico_sdk from installed location
+# (note this can come from environment, CMake cache etc)
 
-set(DEP_PATH ${CMAKE_SOURCE_DIR}/dep)
+# == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
+if(WIN32)
+    set(USERHOME $ENV{USERPROFILE})
+else()
+    set(USERHOME $ENV{HOME})
+endif()
+set(sdkVersion 2.1.1)
+set(toolchainVersion RISCV_RPI_2_0_0_5)
+set(picotoolVersion 2.1.1)
+set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
+if (EXISTS ${picoVscode})
+    include(${picoVscode})
+endif()
+# ====================================================================================
+set(PICO_BOARD pico2 CACHE STRING "Board type")
 
-set(PICO_SDK_PATH ${DEP_PATH}/pico-sdk)
-# set(WIRINGPI_PATH ${DEP_PATH}/WiringPi-3.10)
+# Pull in Raspberry Pi Pico SDK (must be before project)
+include(pico_sdk_import.cmake)
 
-include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
+project(BELUGA-FW C CXX ASM)
 
-project(BELUGA C CXX ASM)
+# Enable exceptions and RTTI (use up more memory)
+set(PICO_CXX_ENABLE_EXCEPTIONS 1)
+set(PICO_CXX_ENABLE_RTTI 1)
 
+# Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+# Add executable. Default name is the project name, version 0.1
 
-file(GLOB SRC_FILES src/*.cpp)
-
-# Define the executable
-add_executable(beluga ${SRC_FILES})
-
-# Include WiringPi headers
-target_include_directories(beluga PRIVATE 
-    # ${WIRINGPI_PATH}/wiringPi
-    ${PICO_SDK_PATH}/src/common/pico_base/include
-    ${PICO_SDK_PATH}/src/rp2_common/hardware_gpio/include
-    ${PICO_SDK_PATH}/src/rp2_common/hardware_pwm/include
-    )
-
-# WiringPi Build
-# add_custom_target(WiringPi_Build
-#     COMMAND cd ${WIRINGPI_PATH} && ./build
-#     WORKING_DIRECTORY ${WIRINGPI_PATH}
-# )
-
-# /home/marali/BELUGA-FW/dep/pico-sdk/src/rp2_common/hardware_gpio/include/hardware
-# /home/marali/BELUGA-FW/dep/pico-sdk/src/rp2_common/hardware_pwm/include/hardware
-#     ${PICO_SDK_PATH}/src/common/pico_base/include
-#     ${PICO_SDK_PATH}/src/rp2_common/hardware_gpio/include
-#     ${PICO_SDK_PATH}/src/rp2_common/hardware_pwm/include
-
-# Add WiringPi as a shared library
-# add_library(wiringPi_lib SHARED IMPORTED)
-# set_target_properties(wiringPi_lib PROPERTIES
-#     IMPORTED_LOCATION ${WIRINGPI_PATH}/wiringPi/libwiringPi.so.3.10
-# )
-
-# # Ensure WiringPi builds first
-# add_dependencies(wiringPi_lib WiringPi_Build)
-
-# Link libraries
-target_link_libraries(beluga PRIVATE
-    # wiringPi_lib
-    pico_stdlib
-    hardware_pwm
-    hardware_gpio
-    hardware_i2c
+add_executable(BELUGA-FW 
+    src/main.cpp 
+    src/init.cpp
+    src/lps22hb.cpp
+    drivers/lps22hb_reg.c
 )
 
-# Create Binary and UF2 File
-pico_add_extra_outputs(beluga)
+
+pico_set_program_name(BELUGA-FW "BELUGA-FW")
+pico_set_program_version(BELUGA-FW "0.1")
+
+# Generate PIO header
+pico_generate_pio_header(BELUGA-FW ${CMAKE_CURRENT_LIST_DIR}/blink.pio)
+
+# Modify the below lines to enable/disable output over UART/USB
+pico_enable_stdio_uart(BELUGA-FW 1)
+pico_enable_stdio_usb(BELUGA-FW 1)
+
+# Add the standard library to the build
+target_link_libraries(BELUGA-FW
+        pico_stdlib)
+
+# Add the standard include files to the build
+target_include_directories(BELUGA-FW PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/include
+        ${CMAKE_CURRENT_LIST_DIR}/drivers
+)
+
+# Add any user requested libraries
+target_link_libraries(BELUGA-FW 
+        hardware_spi
+        hardware_i2c
+        hardware_dma
+        hardware_pio
+        hardware_interp
+        hardware_timer
+        hardware_watchdog
+        hardware_clocks
+        hardware_pwm
+        hardware_gpio
+        )
+
+pico_add_extra_outputs(BELUGA-FW)
+
