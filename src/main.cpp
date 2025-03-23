@@ -1,8 +1,8 @@
 #include "hardware_config.h"
 #include "apisqueen_pwm.h"
 #include "blink.pio.h"
-#include "lps22hb_reg.h"
 #include "lps22hb.h"
+#include "tmp117.h"
 
 void blink_pin_forever(PIO pio, uint sm, uint offset, uint pin, uint freq)
 {
@@ -56,10 +56,11 @@ int main()
     Pinout:    
     - GPIO 22: APISQUEEN Motor Driver
     - GPIO 4/5 (I2C 0): LPS22HB Pressure Sensor
+    - GPIO 6/7 (I2C 1): TMP117 Temperature Sensor
     */
 
     // LPS22HB Setup
-    lps22hb s_lps22hb = lps22hb(i2c0, PICO_DEFAULT_I2C_SDA_PIN, PICO_DEFAULT_I2C_SCL_PIN, 0x5D, 100 * 1000);
+    lps22hb s_lps22hb = lps22hb(i2c0, 4, 5, 0x5D, 100 * 1000);
     s_lps22hb.do_init();
     s_lps22hb.do_test();
 
@@ -68,16 +69,21 @@ int main()
     s_motor_driver.do_init();
     s_motor_driver.do_test();
 
+    // TMP117 Setup
+    tmp117 s_tmp117 = tmp117(i2c1, 6, 7, 0x48, 100 * 1000);
+    s_tmp117.do_init();
+    s_tmp117.do_test();
 
     pair<float, float> press_temp_data;
     while (true) 
     {
         // printf("Hello, world!\n");
-        // sleep_ms(1000);
+        sleep_ms(1000);
         // tight_loop_contents();
         
         press_temp_data = s_lps22hb.do_read();
         printf("Pressure: %.2f hPa, Temperature: %.2f °C\n", press_temp_data.first, press_temp_data.second);
+        printf("Temperature from TMP117: %.2f °C\n", s_tmp117.read_temp());
 
     }
 }
