@@ -660,10 +660,6 @@ int32_t lps22hb_i2c_interface_get(const stmdev_ctx_t *ctx,
 int32_t lps22hb_auto_add_inc_set(const stmdev_ctx_t *ctx, uint8_t val);
 int32_t lps22hb_auto_add_inc_get(const stmdev_ctx_t *ctx, uint8_t *val);
 
-int32_t platform_write(void *handle, uint8_t reg, const uint8_t *bufp, uint16_t len);
-int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp, uint16_t len);
-void platform_delay(uint32_t ms);
-
 /**
   *@}
   *

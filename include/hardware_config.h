@@ -25,8 +25,12 @@
 // This example will use I2C0 on GPIO8 (SDA) and GPIO9 (SCL) running at 400KHz.
 // Pins can be changed, see the GPIO function select table in the datasheet for information on GPIO assignments
 #define I2C_PORT i2c0
-#define I2C_SDA 8
-#define I2C_SCL 9
+#define I2C_SDA 4
+#define I2C_SCL 5
+
+// LPS22HB example
+#define SDA_PIN PICO_DEFAULT_I2C_SDA_PIN
+#define SCL_PIN PICO_DEFAULT_I2C_SCL_PIN
 
 // UART defines
 // By default the stdout UART is `uart0`, so we will use the second one

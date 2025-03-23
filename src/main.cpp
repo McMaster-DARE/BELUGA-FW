@@ -1,13 +1,8 @@
 #include "hardware_config.h"
-#include "init.h"
 #include "apisqueen_pwm.h"
 #include "blink.pio.h"
 #include "lps22hb_reg.h"
-
-
-// Data will be copied from src to dst
-const char src[] = "Hello, world! (from DMA)";
-char dst[count_of(src)];
+#include "lps22hb.h"
 
 void blink_pin_forever(PIO pio, uint sm, uint offset, uint pin, uint freq)
 {
@@ -45,85 +40,44 @@ void startup_msg()
         sleep_ms(1000);
     }
     printf("Starting now\n");
-}
-
-void motor_test()
-{
-    // Motor init
-    motor_driver motor(1); // Initialize motor on GPIO 1
-    motor.drive(10); // Drive motor at 10% duty cycle
-    motor.sleep_s(2); // Sleep for 2 seconds
-    motor.drive(5); // Drive motor at 5% duty cycle
-    motor.sleep_s(2); // Sleep for 2 seconds
-    motor.drive(7.5); // Stop motor
-    motor.sleep_s(2); // Sleep for 2 seconds
-    motor.drive(15); // This will throw an exception
-}
-
-void lps22_test(stmdev_ctx_t dev_ctx)
-{
-    // Variables to store pressure and temperature
-    float pressure_hPa;
-    float temperature_degC;
-
-    // Read pressure and temperature
-    lps22hb_pressure_raw_get(&dev_ctx, (uint32_t*)&pressure_hPa);
-    lps22hb_temperature_raw_get(&dev_ctx, (int16_t*)&temperature_degC);
-
-    // Convert raw data to human-readable values
-    pressure_hPa = pressure_hPa / 4096.0f;  // Convert to hPa
-    temperature_degC = temperature_degC / 100.0f;  // Convert to degrees Celsius
-
-    // Print the values
-    printf("Pressure: %.2f hPa, Temperature: %.2f °C\n", pressure_hPa, temperature_degC);
-
-    // Wait for 1 second before the next reading
-    sleep_ms(1000);
+    printf("System Clock Frequency is %d Hz\n", clock_get_hz(clk_sys));
+    printf("USB Clock Frequency is %d Hz\n", clock_get_hz(clk_usb));
+    // For more examples of clocks use see https://github.com/raspberrypi/pico-examples/tree/master/clocks
 }
 
 int main()
 {
     stdio_init_all();
-    // init(src, dst); // This is not working?
 
     startup_msg();
-
-    printf("System Clock Frequency is %d Hz\n", clock_get_hz(clk_sys));
-    printf("USB Clock Frequency is %d Hz\n", clock_get_hz(clk_usb));
-    // For more examples of clocks use see https://github.com/raspberrypi/pico-examples/tree/master/clocks
-    
-    // Initialize I2C
-    i2c_init(i2c_default, 100 * 1000);  // 100 kHz
-    gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
-    gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
-    gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
-    gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
-
-    // Initialize the LPS22HB sensor
-    stmdev_ctx_t dev_ctx;
-    dev_ctx.write_reg = platform_write;
-    dev_ctx.read_reg = platform_read;
-    dev_ctx.mdelay = platform_delay;
-    dev_ctx.handle = nullptr;  // No handle needed for this implementation
-
-    // Check sensor ID
-    uint8_t who_am_i;
-    lps22hb_device_id_get(&dev_ctx, &who_am_i);
-    if (who_am_i != LPS22HB_ID) {
-        printf("LPS22HB not found!\n");
-        return -1;
-    }
-
-    // Configure the sensor
-    lps22hb_data_rate_set(&dev_ctx, LPS22HB_ODR_10_Hz);  // Set output data rate to 10 Hz
-
     // blink_test();
 
-    while (true) {
-        printf("Hello, world!\n");
+    /* ----------------- Sensor Suite Setup -----------------
+    Pinout:    
+    - GPIO 22: APISQUEEN Motor Driver
+    - GPIO 4/5 (I2C 0): LPS22HB Pressure Sensor
+    */
 
+    // LPS22HB Setup
+    lps22hb s_lps22hb = lps22hb(i2c0, PICO_DEFAULT_I2C_SDA_PIN, PICO_DEFAULT_I2C_SCL_PIN, 0x5D, 100 * 1000);
+    s_lps22hb.do_init();
+    s_lps22hb.do_test();
+
+    // APISQUEEN Motor Setup
+    apisqueen_thruster s_motor_driver = apisqueen_thruster(22); 
+    s_motor_driver.do_init();
+    s_motor_driver.do_test();
+
+
+    pair<float, float> press_temp_data;
+    while (true) 
+    {
+        // printf("Hello, world!\n");
         // sleep_ms(1000);
+        // tight_loop_contents();
         
-        lps22_test(dev_ctx);
+        press_temp_data = s_lps22hb.do_read();
+        printf("Pressure: %.2f hPa, Temperature: %.2f °C\n", press_temp_data.first, press_temp_data.second);
+
     }
 }

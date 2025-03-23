@@ -18,7 +18,6 @@
   */
 
   #include "lps22hb_reg.h"
-  #include "hardware_config.h"
 
   /**
     * @defgroup    LPS22HB
@@ -2174,40 +2173,3 @@
     */
   
   /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
-
-// Platform-specific write function
-int32_t platform_write(void *handle, uint8_t reg, const uint8_t *bufp, uint16_t len) 
-{
-    // Combine the register address and data into a single buffer
-    uint8_t buffer[len + 1];
-    buffer[0] = reg;
-    for (uint16_t i = 0; i < len; i++) {
-        buffer[i + 1] = bufp[i];
-    }
-
-    // Write to the sensor
-    if (i2c_write_blocking(i2c_default, LPS22HB_I2C_ADDR, buffer, len + 1, false) == PICO_ERROR_GENERIC) {
-        return -1;  // Error
-    }
-    return 0;  // Success
-}
-
-// Platform-specific read function
-int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp, uint16_t len) 
-{
-    // Write the register address
-    if (i2c_write_blocking(i2c_default, LPS22HB_I2C_ADDR, &reg, 1, true) == PICO_ERROR_GENERIC) {
-        return -1;  // Error
-    }
-
-    // Read the data
-    if (i2c_read_blocking(i2c_default, LPS22HB_I2C_ADDR, bufp, len, false) == PICO_ERROR_GENERIC) {
-        return -1;  // Error
-    }
-    return 0;  // Success
-}
-
-// Platform-specific delay function
-void platform_delay(uint32_t millisec) {
-    sleep_ms(millisec);
-}

@@ -42,7 +42,6 @@ pico_sdk_init()
 add_executable(BELUGA-FW 
     src/main.cpp 
     src/init.cpp
-    src/lps22hb.cpp
     drivers/lps22hb_reg.c
 )
 

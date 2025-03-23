@@ -7,24 +7,34 @@
 
 
 // PWM motor driver class for the APISQUEEN U2 MINI Thruster motor
-class motor_driver
+class apisqueen_thruster
 {
     private:
     
     public:
     static constexpr double k_freq = 50;
-    motor_driver(unsigned pin, unsigned range = 255) :
-        m_pwm_range(range)
+    apisqueen_thruster(unsigned pin, unsigned range = 255) :
+        m_pwm_range(range),
+        m_pwm_pin(pin)
+    {}
+    
+    void do_init()
     {
         // Initialize GPIO for PWM
-        std::pair<unsigned, unsigned> x = init_gpio(pin);
-        m_slice_num = x.first;
-        m_channel_num = x.second;
-
+        gpio_set_function(m_pwm_pin, GPIO_FUNC_PWM); // Set GPIO to PWM function
+        m_slice_num = pwm_gpio_to_slice_num(m_pwm_pin); // Get PWM slice
+        m_channel_num = pwm_gpio_to_channel(m_pwm_pin); // Get PWM channel
+    
         // Configure PWM
-        init_pwm(m_slice_num, k_freq, range);
+        init_pwm(m_slice_num, k_freq, m_pwm_range);
         // Set initial duty cycle
         pwm_set_chan_level(m_slice_num, m_channel_num, 0);
+    }
+
+    void do_test()
+    {
+        // Do all tests here
+        drive_test();
     }
 
     void drive(unsigned duty_cycle) 
@@ -90,8 +100,22 @@ class motor_driver
     }
     
     private:
+    void drive_test()
+    {
+        // Motor init
+        apisqueen_thruster motor(1); // Initialize motor on GPIO 1
+        motor.drive(10); // Drive motor at 10% duty cycle
+        motor.sleep_s(2); // Sleep for 2 seconds
+        motor.drive(5); // Drive motor at 5% duty cycle
+        motor.sleep_s(2); // Sleep for 2 seconds
+        motor.drive(7.5); // Stop motor
+        motor.sleep_s(2); // Sleep for 2 seconds
+        motor.drive(15); // This will throw an exception
+    }
+
     unsigned m_slice_num; // PWM hardware slice number 
     unsigned m_channel_num; // PWM channel number
     unsigned m_pwm_range;
+    unsigned m_pwm_pin;
 };
 
