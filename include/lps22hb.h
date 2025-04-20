@@ -10,37 +10,30 @@ using namespace std;
 // Class for an LPS22HB sensor
 // This class consolidates all LPS22HB related operations such as:
 // Configurations (Output Data Rate, Block Data Update, etc.), testing, and w/r functions 
-class lps22hb 
+class lps22hb : public sensor
 {
     public:
-    lps22hb(i2c_inst_t *i2c, unsigned sda_pin, unsigned scl_pin, uint8_t i2c_addr, unsigned baud_rate) :
-        m_i2c_port(i2c), 
-        m_i2c_addr(i2c_addr),
-        m_sda_pin(sda_pin),
-        m_scl_pin(scl_pin),
-        m_baud_rate(baud_rate)
-    {}
-    
-    void do_init(lps22hb_odr_t odr = LPS22HB_ODR_10_Hz)
+    lps22hb(uint8_t i2c_addr)
     {
-        // Initialize I2C
-        i2c_init(m_i2c_port, m_baud_rate);
-        gpio_set_function(m_sda_pin, GPIO_FUNC_I2C);
-        gpio_set_function(m_scl_pin, GPIO_FUNC_I2C);
-        gpio_pull_up(m_sda_pin);
-        gpio_pull_up(m_scl_pin);
+        m_addr_s = i2c_addr;
+    }
     
+    void do_init() override
+    {    
+        printf("Initializing LPS22HB I2C...\n");
         // Initialize the LPS22HB sensor
-        m_dev_ctx.write_reg = platform_write;
-        m_dev_ctx.read_reg = platform_read;
-        m_dev_ctx.mdelay = platform_delay;
-        m_dev_ctx.handle = this; // allows w/r functions to access the class members
+        m_lps22hb.write_reg = platform_write;
+        m_lps22hb.read_reg = platform_read;
+        m_lps22hb.mdelay = platform_delay;
+        m_lps22hb.handle = this; // allows w/r functions to access the class members
 
-        lps22hb_data_rate_set(&m_dev_ctx, odr); 
-        lps22hb_block_data_update_set(&m_dev_ctx, PROPERTY_ENABLE);
+        lps22hb_data_rate_set(&m_lps22hb, LPS22HB_ODR_10_Hz); 
+        lps22hb_block_data_update_set(&m_lps22hb, PROPERTY_ENABLE);
+
+        printf("LPS22HB sensor initialized.\n");
     }
 
-    void do_test()
+    void do_test() override
     {
         // Do all tests here
         bool pass = true;
@@ -64,15 +57,15 @@ class lps22hb
     pair<float, float> do_read()
     {
         uint8_t pressure_ready, temp_ready;
-        lps22hb_data_ready_get(&m_dev_ctx, &pressure_ready, &temp_ready);
+        lps22hb_data_ready_get(&m_lps22hb, &pressure_ready, &temp_ready);
 
         if(pressure_ready && temp_ready)
         {
             uint32_t raw_pressure;
             int16_t raw_temperature;
 
-            lps22hb_pressure_raw_get(&m_dev_ctx, &raw_pressure);
-            lps22hb_temperature_raw_get(&m_dev_ctx, &raw_temperature);
+            lps22hb_pressure_raw_get(&m_lps22hb, &raw_pressure);
+            lps22hb_temperature_raw_get(&m_lps22hb, &raw_temperature);
 
             float pressure_hPa = lps22hb_from_lsb_to_hpa(raw_pressure);
             float temperature_degC = lps22hb_from_lsb_to_degc(raw_temperature);
@@ -98,7 +91,7 @@ class lps22hb
         for (uint16_t i = 0; i < len; i++) 
             buffer[i + 1] = bufp[i];
         
-        if (i2c_write_blocking(self->m_i2c_port, self->m_i2c_addr, buffer, len + 1, false) == PICO_ERROR_GENERIC) 
+        if (i2c_write_blocking(self->m_i2c_s, self->m_addr_s, buffer, len + 1, false) == PICO_ERROR_GENERIC) 
             return -1;
         
         return 0;
@@ -108,10 +101,10 @@ class lps22hb
     {
         lps22hb *self = static_cast<lps22hb *>(handle);
 
-        if (i2c_write_blocking(self->m_i2c_port, self->m_i2c_addr, &reg, 1, true) == PICO_ERROR_GENERIC) 
+        if (i2c_write_blocking(self->m_i2c_s, self->m_addr_s, &reg, 1, true) == PICO_ERROR_GENERIC) 
             return -1;
         
-        if (i2c_read_blocking(self->m_i2c_port, self->m_i2c_addr, bufp, len, false) == PICO_ERROR_GENERIC) 
+        if (i2c_read_blocking(self->m_i2c_s, self->m_addr_s, bufp, len, false) == PICO_ERROR_GENERIC) 
             return -1;
         
         return 0;
@@ -176,11 +169,5 @@ class lps22hb
         return false;
     }
 
-    
-    i2c_inst_t*     m_i2c_port;
-    uint8_t         m_i2c_addr;
-    stmdev_ctx_t    m_dev_ctx;
-    unsigned        m_sda_pin;
-    unsigned        m_scl_pin;
-    unsigned        m_baud_rate;
+    stmdev_ctx_t    m_lps22hb;
 };

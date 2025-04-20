@@ -18,6 +18,7 @@
   */
 
   #include "lps22hb_reg.h"
+  #include "hardware_config.h"
 
   /**
     * @defgroup    LPS22HB
@@ -2173,3 +2174,37 @@
     */
   
   /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
+
+  // // LPS22HB is a register-based device. Meaning we need to write the register address before writing the data
+  // // In the case of the LPS22HB, the register address is the first byte of the data buffer
+  // // in `platform_write', we write the register address and the data to the device in one go
+  // // in `platform_read', we write the register address and then read the data from the device
+
+  // // Platform-specific Functions for LPS22HB
+  // int32_t platform_write(void *handle, uint8_t reg, const uint8_t *bufp, uint16_t len) 
+  // {
+  //   uint8_t buffer[len + 1];
+  //   buffer[0] = reg;
+  //   for (uint16_t i = 0; i < len; i++) 
+  //       buffer[i + 1] = bufp[i];
+    
+  //   if (i2c_write_blocking(i2c_default, LPS22HB_I2C_ADDR, buffer, len + 1, false) == PICO_ERROR_GENERIC) 
+  //       return -1;
+    
+  //   return 0;
+  // }
+
+  // int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp, uint16_t len) {
+  //   if (i2c_write_blocking(i2c_default, LPS22HB_I2C_ADDR, &reg, 1, true) == PICO_ERROR_GENERIC) 
+  //       return -1;
+    
+  //   if (i2c_read_blocking(i2c_default, LPS22HB_I2C_ADDR, bufp, len, false) == PICO_ERROR_GENERIC) 
+  //       return -1;
+    
+  //   return 0;
+  // }
+
+  // void platform_delay(uint32_t ms) 
+  // {
+  //   sleep_ms(ms);
+  // }
