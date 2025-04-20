@@ -43,6 +43,7 @@ add_executable(BELUGA-FW
     src/main.cpp 
     src/init.cpp
     drivers/lps22hb_reg.c
+    include/imu.cpp
 )
 
 
