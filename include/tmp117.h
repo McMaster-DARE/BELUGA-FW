@@ -1,5 +1,6 @@
 #include "hardware_config.h"
 #include <stdexcept>
+#include "sensor.h"
 
 // TMP117 Register Addresses
 #define TMP117_REG_TEMP         0x00
@@ -24,12 +25,15 @@
 // TMP117 I2C Address (default is 0x48, can be changed via ADD pins)
 #define TMP117_I2C_ADDR         0x48
 
+#pragma once
+
 using namespace std;
 
-class tmp117
+class tmp117 : public sensor
 {
     public:
     tmp117(i2c_inst_t *i2c, unsigned sda_pin, unsigned scl_pin, uint8_t i2c_addr, unsigned baud_rate) :
+        sensor(),
         m_i2c_port(i2c), 
         m_i2c_addr(i2c_addr),
         m_calibbias(0),
@@ -38,20 +42,18 @@ class tmp117
         m_baud_rate(baud_rate)
     {}
 
-    void do_init()
+    void do_init() override
     {
+        printf("Initializing TMP117 I2C...\n");
         // Initialize I2C
-        i2c_init(m_i2c_port, m_baud_rate);
-        gpio_set_function(m_sda_pin, GPIO_FUNC_I2C);
-        gpio_set_function(m_scl_pin, GPIO_FUNC_I2C);
-        gpio_pull_up(m_sda_pin);
-        gpio_pull_up(m_scl_pin);
-
-        // Initialize the TMP117 sensor
-        tmp117_init();
+        // i2c_init(m_i2c_port, m_baud_rate);
+        // gpio_set_function(m_sda_pin, GPIO_FUNC_I2C);
+        // gpio_set_function(m_scl_pin, GPIO_FUNC_I2C);
+        // gpio_pull_up(m_sda_pin);
+        // gpio_pull_up(m_scl_pin);
     }
 
-    void do_test()
+    void do_test() override
     {
         // Do all tests here
         bool pass = true;
@@ -67,13 +69,19 @@ class tmp117
             printf("TMP117 tests passed.\n");
     }
 
+    void add_to_i2c(i2c_inst_t* p) override
+    {
+        // Add TMP117 to I2C bus
+        m_i2c_port = p;
+    }
+
     float read_temp()
     {
-        return tmp117_read_temp();
+        int16_t raw_temp = tmp117_read_reg(TMP117_REG_TEMP);
+        return (float)raw_temp * TMP117_RESOLUTION_10UC / MICRODEGREE_PER_10MILLIDEGREE / 1000.0f;  // Convert to Celsius
     }
 
     private:
-    // Function to read a 16-bit register from TMP117
     int16_t tmp117_read_reg(uint8_t reg) 
     {
         uint8_t buffer[2] = {0};
@@ -82,39 +90,15 @@ class tmp117
         return (int16_t)((buffer[0] << 8) | buffer[1]);  // Combine bytes into 16-bit value
     }
 
-    // Function to write a 16-bit register to TMP117
     void tmp117_write_reg(uint8_t reg, int16_t value) 
     {
         uint8_t buffer[3] = {reg, (uint8_t)(value >> 8), (uint8_t)(value & 0xFF)};
         i2c_write_blocking(m_i2c_port, m_i2c_addr, buffer, 3, false);  // Write register address and value
     }
 
-    // Function to read the temperature from TMP117
-    float tmp117_read_temp() 
-    {
-        int16_t raw_temp = tmp117_read_reg(TMP117_REG_TEMP);
-        return (float)raw_temp * TMP117_RESOLUTION_10UC / MICRODEGREE_PER_10MILLIDEGREE / 1000.0f;  // Convert to Celsius
-    }
-
-    // Function to set the calibration bias
     void tmp117_set_calibbias() 
     {
         tmp117_write_reg(TMP117_REG_TEMP_OFFSET, m_calibbias);
-    }
-
-    // Function to initialize the TMP117 sensor
-    void tmp117_init() 
-    {
-
-        // Check device ID
-        int16_t dev_id = tmp117_read_reg(TMP117_REG_DEVICE_ID);
-        if (dev_id != TMP117_DEVICE_ID && dev_id != TMP116_DEVICE_ID) 
-        {
-            printf("Error: Unsupported device ID (0x%04X)\n", dev_id);
-            return;
-        }
-
-        printf("TMP117 initialized successfully.\n");
     }
 
     bool who_am_i_test()

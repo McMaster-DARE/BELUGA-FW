@@ -1,4 +1,5 @@
 #include "hardware_config.h"
+#include "sensor.h"
 #include "init.h"
 #include <utility>
 #include <stdexcept>
@@ -7,18 +8,19 @@
 
 
 // PWM motor driver class for the APISQUEEN U2 MINI Thruster motor
-class apisqueen_thruster
+class apisqueen_thruster : public sensor
 {
     private:
     
     public:
     static constexpr double k_freq = 50;
     apisqueen_thruster(unsigned pin, unsigned range = 255) :
+        sensor(),
         m_pwm_range(range),
         m_pwm_pin(pin)
     {}
     
-    void do_init()
+    void do_init() override
     {
         // Initialize GPIO for PWM
         gpio_set_function(m_pwm_pin, GPIO_FUNC_PWM); // Set GPIO to PWM function
@@ -31,7 +33,7 @@ class apisqueen_thruster
         pwm_set_chan_level(m_slice_num, m_channel_num, 0);
     }
 
-    void do_test()
+    void do_test() override
     {
         // Do all tests here
         drive_test();
@@ -103,14 +105,13 @@ class apisqueen_thruster
     void drive_test()
     {
         // Motor init
-        apisqueen_thruster motor(1); // Initialize motor on GPIO 1
-        motor.drive(10); // Drive motor at 10% duty cycle
-        motor.sleep_s(2); // Sleep for 2 seconds
-        motor.drive(5); // Drive motor at 5% duty cycle
-        motor.sleep_s(2); // Sleep for 2 seconds
-        motor.drive(7.5); // Stop motor
-        motor.sleep_s(2); // Sleep for 2 seconds
-        motor.drive(15); // This will throw an exception
+        drive(10); // Drive motor at 10% duty cycle
+        sleep_s(2); // Sleep for 2 seconds
+        drive(5); // Drive motor at 5% duty cycle
+        sleep_s(2); // Sleep for 2 seconds
+        drive(7.5); // Stop motor
+        sleep_s(2); // Sleep for 2 seconds
+        // motor.drive(15); // This will throw an exception
     }
 
     unsigned m_slice_num; // PWM hardware slice number 
