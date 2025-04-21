@@ -4,6 +4,9 @@
 
 #include <stdio.h>
 #include <stdexcept>
+#include <array>
+
+#pragma once
 
 using namespace std;
 
@@ -13,27 +16,22 @@ using namespace std;
 class lps22hb : public sensor
 {
     public:
-    lps22hb(uint8_t i2c_addr)
-    {
-        m_addr_s = i2c_addr;
-    }
+    lps22hb(const string& name, uint8_t i2c_addr) :
+        sensor(name, i2c_addr)
+    {}
     
     void do_init() override
     {    
-        printf("Initializing LPS22HB I2C...\n");
         // Initialize the LPS22HB sensor
         m_lps22hb.write_reg = platform_write;
         m_lps22hb.read_reg = platform_read;
         m_lps22hb.mdelay = platform_delay;
         m_lps22hb.handle = this; // allows w/r functions to access the class members
-
         lps22hb_data_rate_set(&m_lps22hb, LPS22HB_ODR_10_Hz); 
         lps22hb_block_data_update_set(&m_lps22hb, PROPERTY_ENABLE);
-
-        printf("LPS22HB sensor initialized.\n");
     }
 
-    void do_test() override
+    unsigned do_test() override
     {
         // Do all tests here
         bool pass = true;
@@ -47,17 +45,19 @@ class lps22hb : public sensor
 
         if (!pass)
         {
-            printf("LPS22HB tests failed.\n");
-            throw runtime_error("LPS22HB tests failed.");
+            return 0;
         }
-        else
-            printf("LPS22HB tests passed.\n");
+        
+        return 1;
     }
 
-    pair<float, float> do_read()
+    pair<double, array<float, 2>> read()
     {
         uint8_t pressure_ready, temp_ready;
         lps22hb_data_ready_get(&m_lps22hb, &pressure_ready, &temp_ready);
+
+        float pressure_hPa = 0.0;
+        float temperature_degC = 0.0;
 
         if(pressure_ready && temp_ready)
         {
@@ -67,13 +67,12 @@ class lps22hb : public sensor
             lps22hb_pressure_raw_get(&m_lps22hb, &raw_pressure);
             lps22hb_temperature_raw_get(&m_lps22hb, &raw_temperature);
 
-            float pressure_hPa = lps22hb_from_lsb_to_hpa(raw_pressure);
-            float temperature_degC = lps22hb_from_lsb_to_degc(raw_temperature);
-
-            return make_pair(pressure_hPa, temperature_degC);
+            pressure_hPa = lps22hb_from_lsb_to_hpa(raw_pressure);
+            temperature_degC = lps22hb_from_lsb_to_degc(raw_temperature);
         }
-        else
-            return make_pair(0.0, 0.0);
+
+        printf("[%.3f s] Pressure: %.2f hPa, Temperature: %.2f °C\n", get_time(), pressure_hPa, temperature_degC);
+        return make_pair(get_time(), array<float, 2>{pressure_hPa, temperature_degC});
     }
 
     private:
@@ -170,4 +169,5 @@ class lps22hb : public sensor
     }
 
     stmdev_ctx_t    m_lps22hb;
+    string          m_name;
 };

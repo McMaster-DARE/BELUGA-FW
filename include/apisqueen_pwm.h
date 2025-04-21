@@ -14,8 +14,8 @@ class apisqueen_thruster : public sensor
     
     public:
     static constexpr double k_freq = 50;
-    apisqueen_thruster(unsigned pin, unsigned range = 255) :
-        sensor(),
+    apisqueen_thruster(const string& name, const uint8_t addr, unsigned pin, unsigned range = 255) :
+        sensor(name, addr),
         m_pwm_range(range),
         m_pwm_pin(pin)
     {}
@@ -28,15 +28,34 @@ class apisqueen_thruster : public sensor
         m_channel_num = pwm_gpio_to_channel(m_pwm_pin); // Get PWM channel
     
         // Configure PWM
-        init_pwm(m_slice_num, k_freq, m_pwm_range);
+        pwm_config config = pwm_get_default_config(); // Get default PWM config
+        pwm_config_set_clkdiv(&config, 4.f); // Set clock divider (adjust for frequency)
+        pwm_config_set_wrap(&config, m_pwm_range); // Set PWM range
+        pwm_init(m_slice_num, &config, true); // Initialize PWM
+        
         // Set initial duty cycle
         pwm_set_chan_level(m_slice_num, m_channel_num, 0);
     }
 
-    void do_test() override
+    unsigned do_test() override
     {
-        // Do all tests here
-        drive_test();
+        try 
+        {
+            // Motor init
+            drive(10); // Drive motor at 10% duty cycle
+            sleep_s(2); // Sleep for 2 seconds
+            drive(5); // Drive motor at 5% duty cycle
+            sleep_s(2); // Sleep for 2 seconds
+            drive(7.5); // Stop motor
+            sleep_s(2); // Sleep for 2 seconds
+            // motor.drive(15); // This will throw an exception
+        }
+        catch (const std::invalid_argument& e) 
+        {
+            printf("Caught exception: %s\n", e.what());
+            return 0; // Test failed
+        }
+        return 1;
     }
 
     void drive(unsigned duty_cycle) 
@@ -102,18 +121,6 @@ class apisqueen_thruster : public sensor
     }
     
     private:
-    void drive_test()
-    {
-        // Motor init
-        drive(10); // Drive motor at 10% duty cycle
-        sleep_s(2); // Sleep for 2 seconds
-        drive(5); // Drive motor at 5% duty cycle
-        sleep_s(2); // Sleep for 2 seconds
-        drive(7.5); // Stop motor
-        sleep_s(2); // Sleep for 2 seconds
-        // motor.drive(15); // This will throw an exception
-    }
-
     unsigned m_slice_num; // PWM hardware slice number 
     unsigned m_channel_num; // PWM channel number
     unsigned m_pwm_range;

@@ -62,13 +62,14 @@ int main()
     */
     sensor_suite suite;
 
-    lps22hb s_lps22hb(0x5D);
-    imu     s_bno055(0x28);
-    // tmp117 s_tmp117(0x48);
-    apisqueen_thruster s_motor_driver(22); // GPIO pin 22 for motor driver
+    lps22hb s_lps22hb("lps22hb", 0x5D);
+    imu     s_bno055("bno055", 0x28);
+    tmp117 s_tmp117("tmp117", 0x48);
+    apisqueen_thruster s_motor_driver("motor1", 0, 22); // GPIO pin 22 for motor driver
 
     suite.add(&s_lps22hb);
     suite.add(&s_bno055);
+    suite.add(&s_tmp117);
 
     // Connect all sensors to I2C bus
     suite.connect_i2c(i2c1, 6, 7, 100 * 1000);
@@ -82,17 +83,11 @@ int main()
     // Calibrate all sensors
     suite.calibrate_loop();
 
-    pair<float, float> press_temp_data;
     while (true) 
     {
-        printf("Hello, world!\n");
         sleep_ms(1000);
-        // tight_loop_contents();
-        
-        press_temp_data = s_lps22hb.do_read();
-        printf("Pressure: %.2f hPa, Temperature: %.2f °C\n", press_temp_data.first, press_temp_data.second);
-
-        // printf("Temperature from TMP117: %.2f °C\n", s_tmp117.read_temp());
+        s_lps22hb.read();
         s_bno055.read_gyro_xyz();
+        s_tmp117.read();
     }
 }

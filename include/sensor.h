@@ -4,6 +4,8 @@
 
 #include "hardware_config.h"
 #include <vector>
+#include <stdexcept>
+#include <string>
 
 #pragma once 
 
@@ -12,11 +14,18 @@ using namespace std;
 class sensor
 {
     public:
-    sensor() : m_i2c_s(nullptr), m_addr_s(0) {}
+    sensor(const string& name, const uint8_t addr) : 
+        m_i2c_s(nullptr), 
+        m_name(name), 
+        m_addr_s(addr)
+    {}
 
     virtual void do_init() {}
-    virtual void do_test() {}
+    virtual unsigned do_test() { return 1; }
     virtual void do_calibrate() {}
+    
+    virtual const char* get_name() { return m_name.c_str(); }
+    double get_time() { return to_ms_since_boot(get_absolute_time()) / 1000.0; } // in seconds
 
     virtual void add_to_i2c(i2c_inst_t* i2c_bus)
     {
@@ -25,6 +34,7 @@ class sensor
 
     protected:
     i2c_inst_t* m_i2c_s;
+    string m_name;
     uint8_t m_addr_s; // Sensor-specific I2C address
 };
 
@@ -58,23 +68,45 @@ class sensor_suite
     {
         printf("==== INIT PHASE ====\n");
         for (auto s : m_sensors)
+        {
+            printf("Initializing %s...\n", s->get_name());
             s->do_init();
+        }
         printf("Initialization complete.\n");
     }
 
     void test_loop()
     {
         printf("==== TEST PHASE ====\n");
+
+        unsigned test_accum = 0;
         for (auto s : m_sensors)
-            s->do_test();
-        printf("All tests passed.\n");
+        {
+            printf("Validating sensor %s (%d/%d)\n", s->get_name(), test_accum, m_sensors.size());
+            
+            unsigned res = s->do_test();
+            if (res == 0)
+                printf("Sensor %s failed test!\n", s->get_name());
+            test_accum += res;
+        }
+
+        if (test_accum != m_sensors.size())
+        {
+            printf("Sensor Suite test phase FAILED! %d/%d\n", test_accum, m_sensors.size());
+            throw runtime_error("Some tests failed.");
+        }
+    
+        printf("Sensor Suite testphase PASSED! (%d/%d)\n", test_accum, m_sensors.size());
     }
 
     void calibrate_loop()
     {
         printf("==== CALIBRATION PHASE ====\n");
         for (auto s : m_sensors)
-            s->do_calibrate();
+        {
+            printf("Calibrating sensor %s...\n", s->get_name());
+            s->do_calibrate(); 
+        }
         printf("Calibration complete.\n");
     }
 

@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <map>
 #include <utility>
+#include <array>
 
 
 #pragma once
@@ -14,16 +15,14 @@ using namespace std;
 class imu : public sensor
 {
     public:
-    imu(uint8_t i2c_addr)
-    {
-        m_addr_s = i2c_addr; // Sensor-specific I2C address
-    }
+    imu(const string& name, uint8_t i2c_addr) :
+        sensor(name, i2c_addr)
+    {}
     
     void do_init() override
     {
-        printf("Initializing BNO055 sensor...\n");
-        active_inst = this; // Set the active instance to this one
-        // Initialize the BNO055 sensor
+        active_inst = this; 
+
         m_bno055.bus_write = platform_write;
         m_bno055.bus_read = platform_read;
         m_bno055.delay_msec = platform_delay;
@@ -31,15 +30,11 @@ class imu : public sensor
 
         comres = bno055_init(&m_bno055);
         power_mode = BNO055_POWER_MODE_NORMAL;
-
-        /* set the power mode as NORMAL*/
         comres += bno055_set_power_mode(power_mode);
         comres += bno055_set_operation_mode(BNO055_OPERATION_MODE_NDOF);
-
-        printf("BNO055 sensor initialized.\n");
     }
 
-    void do_test() override
+    unsigned do_test() override
     {
         // BNO055 has more than 256 bytes worth of registers, but I2C register
         // addressing is limited to 1 byte (0x00–0xFF). To work around that, the
@@ -47,8 +42,6 @@ class imu : public sensor
         // register bank switcher. Each page maps 0x00–0xFF, but they mean
         // different things depending on the PAGE_ID register
 
-        // Do all tests here
-        printf("===== BNO055 Structured Register Test Start =====\n");
         bool pass = true;
         uint8_t set_page = 0x01;
         uint8_t read_val = 0;
@@ -71,151 +64,107 @@ class imu : public sensor
 
         if (!pass)
         {
-            printf("===== BNO055 Structured Test FAILED =====\n");
-            throw runtime_error("Structured register test failed.");
+            return 0;
         }
-        else
-        {
-            printf("===== BNO055 Structured Test PASSED =====\n");
-        }
+        
+        return 1;
     }
 
-    void do_calibrate() override
-    {
-        // Calibration logic here
-        printf("Calibrating BNO055...\n");
-        // Implement calibration logic if needed
-    }
-
-    bno055_accel_double_t read_accel_xyz()
+    pair<double, array<double, 3>> read_accel_xyz()
     {
         comres = bno055_convert_double_accel_xyz_msq(&d_accel_xyz);
+        double t = get_time();
+    
         if (comres != BNO055_SUCCESS)
-        {
             printf("Error reading accelerometer data.\n");
-        }
-
-        printf("Accelerometer: x: %f, y: %f, z: %f\n", d_accel_xyz.x, d_accel_xyz.y, d_accel_xyz.z);
-        return d_accel_xyz;
+    
+        printf("[%.3f s] Accelerometer: x: %f, y: %f, z: %f\n", t, d_accel_xyz.x, d_accel_xyz.y, d_accel_xyz.z);
+    
+        return make_pair(t, array<double, 3>{d_accel_xyz.x, d_accel_xyz.y, d_accel_xyz.z});
     }
-
-    bno055_euler_double_t read_euler_hpr()
+    
+    pair<double, array<double, 3>> read_euler_hpr()
     {
         comres = bno055_convert_double_euler_hpr_deg(&d_euler_hpr);
+        double t = get_time();
+    
         if (comres != BNO055_SUCCESS)
-        {
             printf("Error reading euler data.\n");
-        }
-
-        printf("Euler: h: %f, p: %f, r: %f\n", d_euler_hpr.h, d_euler_hpr.p, d_euler_hpr.r);
-        return d_euler_hpr;
+    
+        printf("[%.3f s] Euler: h: %f, p: %f, r: %f\n", t, d_euler_hpr.h, d_euler_hpr.p, d_euler_hpr.r);
+    
+        return make_pair(t, array<double, 3>{d_euler_hpr.h, d_euler_hpr.p, d_euler_hpr.r});
     }
-
-    bno055_gyro_double_t read_gyro_xyz()
+    
+    pair<double, array<double, 3>> read_gyro_xyz()
     {
         comres = bno055_convert_double_gyro_xyz_dps(&d_gyro_xyz);
+        double t = get_time();
+    
         if (comres != BNO055_SUCCESS)
-        {
             printf("Error reading gyroscope data.\n");
-        }
-
-        printf("Gyroscope: x: %f, y: %f, z: %f\n", d_gyro_xyz.x, d_gyro_xyz.y, d_gyro_xyz.z);
-        return d_gyro_xyz;
+    
+        printf("[%.3f s] Gyroscope: x: %f, y: %f, z: %f\n", t, d_gyro_xyz.x, d_gyro_xyz.y, d_gyro_xyz.z);
+    
+        return make_pair(t, array<double, 3>{d_gyro_xyz.x, d_gyro_xyz.y, d_gyro_xyz.z});
     }
-
-    bno055_mag_double_t read_mag_xyz()
+    
+    pair<double, array<double, 3>> read_mag_xyz()
     {
         comres = bno055_convert_double_mag_xyz_uT(&d_mag_xyz);
+        double t = get_time();
+    
         if (comres != BNO055_SUCCESS)
-        {
             printf("Error reading magnetometer data.\n");
-        }
-
-        printf("Magnetometer: x: %f, y: %f, z: %f\n", d_mag_xyz.x, d_mag_xyz.y, d_mag_xyz.z);
-        return d_mag_xyz;
+    
+        printf("[%.3f s] Magnetometer: x: %f, y: %f, z: %f\n", t, d_mag_xyz.x, d_mag_xyz.y, d_mag_xyz.z);
+    
+        return make_pair(t, array<double, 3>{d_mag_xyz.x, d_mag_xyz.y, d_mag_xyz.z});
     }
-
-    bno055_linear_accel_double_t read_linear_accel_xyz()
+    
+    pair<double, array<double, 3>> read_linear_accel_xyz()
     {
         comres = bno055_convert_double_linear_accel_xyz_msq(&d_linear_accel_xyz);
+        double t = get_time();
+    
         if (comres != BNO055_SUCCESS)
-        {
             printf("Error reading linear acceleration data.\n");
-        }
-
-        printf("Linear Acceleration: x: %f, y: %f, z: %f\n", d_linear_accel_xyz.x, d_linear_accel_xyz.y, d_linear_accel_xyz.z);
-        return d_linear_accel_xyz;
+    
+        printf("[%.3f s] Linear Acceleration: x: %f, y: %f, z: %f\n", t, d_linear_accel_xyz.x, d_linear_accel_xyz.y, d_linear_accel_xyz.z);
+    
+        return make_pair(t, array<double, 3>{d_linear_accel_xyz.x, d_linear_accel_xyz.y, d_linear_accel_xyz.z});
     }
-
-    bno055_gravity_double_t read_gravity_xyz()
+    
+    pair<double, array<double, 3>> read_gravity_xyz()
     {
         comres = bno055_convert_double_gravity_xyz_msq(&d_gravity_xyz);
+        double t = get_time();
+    
         if (comres != BNO055_SUCCESS)
-        {
             printf("Error reading gravity data.\n");
-        }
-
-        printf("Gravity: x: %f, y: %f, z: %f\n", d_gravity_xyz.x, d_gravity_xyz.y, d_gravity_xyz.z);
-        return d_gravity_xyz;
+    
+        printf("[%.3f s] Gravity: x: %f, y: %f, z: %f\n", t, d_gravity_xyz.x, d_gravity_xyz.y, d_gravity_xyz.z);
+    
+        return make_pair(t, array<double, 3>{d_gravity_xyz.x, d_gravity_xyz.y, d_gravity_xyz.z});
     }
-
-    bno055_quaternion_t read_quaternion_wxyz()
+    
+    pair<double, array<double, 4>> read_quaternion_wxyz()
     {
         comres = bno055_read_quaternion_wxyz(&quaternion_wxyz);
-        if (comres != BNO055_SUCCESS)
-        {
-            printf("Error reading quaternion data.\n");
-        }
-
-        printf("Quaternion: w: %f, x: %f, y: %f, z: %f\n", quaternion_wxyz.w, quaternion_wxyz.x, quaternion_wxyz.y, quaternion_wxyz.z);
-        return quaternion_wxyz;
-    } 
+        double t = get_time();
     
-    map<string, double> read_all()
-    {
-        bno055_accel_double_t accel = read_accel_xyz();
-        bno055_euler_double_t euler = read_euler_hpr();
-        bno055_gyro_double_t gyro = read_gyro_xyz();
-        bno055_mag_double_t mag = read_mag_xyz();
-        bno055_linear_accel_double_t linear_accel = read_linear_accel_xyz();
-        bno055_gravity_double_t gravity = read_gravity_xyz();
-        bno055_quaternion_t quaternion = read_quaternion_wxyz();
-
-        map<string, double> data = {
-            {"accel_x", accel.x},
-            {"accel_y", accel.y},
-            {"accel_z", accel.z},
-            {"euler_h", euler.h},
-            {"euler_r", euler.r},
-            {"euler_p", euler.p},
-            {"gyro_x", gyro.x},
-            {"gyro_y", gyro.y},
-            {"gyro_z", gyro.z},
-            {"mag_x", mag.x},
-            {"mag_y", mag.y},
-            {"mag_z", mag.z},
-            {"linear_accel_x", linear_accel.x},
-            {"linear_accel_y", linear_accel.y},
-            {"linear_accel_z", linear_accel.z},
-            {"gravity_x", gravity.x},
-            {"gravity_y", gravity.y},
-            {"gravity_z", gravity.z},
-            {"quaternion_w", quaternion.w},
-            {"quaternion_x", quaternion.x},
-            {"quaternion_y", quaternion.y},
-            {"quaternion_z", quaternion.z}
-        };
-
-        return data;
-    }
-
-    void read_print_all()
-    {
-        map<string, double> data = read_all();
-        for (const auto& pair : data) {
-            printf("%s: %f\n", pair.first.c_str(), pair.second);
-        }
-    }
+        if (comres != BNO055_SUCCESS)
+            printf("Error reading quaternion data.\n");
+    
+        printf("[%.3f s] Quaternion: w: %f, x: %f, y: %f, z: %f\n", t, quaternion_wxyz.w, quaternion_wxyz.x, quaternion_wxyz.y, quaternion_wxyz.z);
+    
+        return make_pair(t, array<double, 4>{
+            static_cast<double>(quaternion_wxyz.w),
+            static_cast<double>(quaternion_wxyz.x),
+            static_cast<double>(quaternion_wxyz.y),
+            static_cast<double>(quaternion_wxyz.z)
+        });
+    }    
 
     private:
     static s8 platform_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
@@ -297,10 +246,10 @@ class imu : public sensor
 
     bool write_test(uint8_t reg, uint8_t *data, uint16_t len)
     {
-        printf("Writing to register 0x%02X with data 0x%02X...\n", reg, *data);
+        // printf("Writing to register 0x%02X with data 0x%02X...\n", reg, *data);
         if (platform_write(m_addr_s, reg, data, len) == BNO055_SUCCESS)
         {
-            printf("Write successful to register 0x%02X with data 0x%02X.\n", reg, *data);
+            // printf("Write successful to register 0x%02X with data 0x%02X.\n", reg, *data);
             return true;
         }
         
@@ -310,10 +259,10 @@ class imu : public sensor
 
     bool read_test(uint8_t reg, uint8_t *data, uint16_t len)
     {
-        printf("Reading from register 0x%02X...\n", reg);
+        // printf("Reading from register 0x%02X...\n", reg);
         if (platform_read(m_addr_s, reg, data, len) == BNO055_SUCCESS)
         {
-            printf("Read successful from register 0x%02X with data 0x%02X.\n", reg, *data);
+            // printf("Read successful from register 0x%02X with data 0x%02X.\n", reg, *data);
             return true;
         }
 
@@ -323,21 +272,21 @@ class imu : public sensor
 
     bool write_and_read_test(uint8_t reg, uint8_t *data, uint16_t len)
     {
-        printf("Writing data 0x%02X to register 0x%02X and reading back...\n", *data, reg);
+        // printf("Writing data 0x%02X to register 0x%02X and reading back...\n", *data, reg);
         if (platform_write(m_addr_s, reg, data, len) == BNO055_SUCCESS)
         {
-            printf("Write successful to register 0x%02X with data 0x%02X.\n", reg, *data);
-            printf("Reading back...\n");
+            // printf("Write successful to register 0x%02X with data 0x%02X.\n", reg, *data);
+            // printf("Reading back...\n");
             uint8_t read_data;
             if (platform_read(m_addr_s, reg, &read_data, len) == BNO055_SUCCESS)
             {
-                printf("Read successful from register 0x%02X with data 0x%02X.\n", reg, read_data);
+                // printf("Read successful from register 0x%02X with data 0x%02X.\n", reg, read_data);
                 if (read_data == *data)
                 {
-                    printf("Write and read values match.\n");
-                    printf("Register 0x%02X: 0x%02X\n", reg, *data);
-                    printf("Read value: 0x%02X\n", read_data);
-                    printf("Write and read values match.\n");
+                    // printf("Write and read values match.\n");
+                    // printf("Register 0x%02X: 0x%02X\n", reg, *data);
+                    // printf("Read value: 0x%02X\n", read_data);
+                    // printf("Write and read values match.\n");
                     return true;
                 }
                 else
