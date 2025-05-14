@@ -5,6 +5,7 @@
 #include "lps22hb.h"
 #include "tmp117.h"
 #include "imu.h"
+#include "sht40.h"
 
 void blink_pin_forever(PIO pio, uint sm, uint offset, uint pin, uint freq)
 {
@@ -58,7 +59,7 @@ int main()
     Pinout:    
     - GPIO 22: APISQUEEN Motor Driver
     - GPIO 4/5 (I2C 0): LPS22HB Pressure Sensor
-    - GPIO 6/7 (I2C 1): TMP117 Temperature Sensor
+    - GPIO 6/7 (I2C 1): TMP117 Temperature Sensor, SHT40 Temperature/Humidity Sensor
     */
     sensor_suite suite;
 
@@ -66,13 +67,18 @@ int main()
     imu     s_bno055("bno055", 0x28);
     tmp117 s_tmp117("tmp117", 0x48);
     apisqueen_thruster s_motor_driver("motor1", 0, 22); // GPIO pin 22 for motor driver
+    tmp117 s_sht40("sht40", 0x44);
+
 
     suite.add(&s_lps22hb);
     suite.add(&s_bno055);
     suite.add(&s_tmp117);
+    suite.add(&s_sht40);
 
     // Connect all sensors to I2C bus
-    suite.connect_i2c(i2c1, 6, 7, 100 * 1000);
+    suite.connect_i2c(i2c1, 6, 7, 100 * 1000); // Note: SHT40 shouldn't need pull-up resistors (already included in breakout board), but had this code when testing my driver so can keep it anyways for now
+
+// Got to here in main function
 
     // Initialize all sensors
     suite.init_loop();
@@ -89,5 +95,6 @@ int main()
         s_lps22hb.read();
         s_bno055.read_gyro_xyz();
         s_tmp117.read();
+        s_sht40.read();
     }
 }
