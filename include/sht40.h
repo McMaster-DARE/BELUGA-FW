@@ -46,6 +46,19 @@ class sht40 : public sensor
     // TODO: Test functions
     // No calibration function needed, SHT40 comes factory-calibrated
 
+    unsigned do_test() override
+    {
+        bool pass = true;
+        // pass &= who_am_i_test();
+        pass &= write_and_read_test();
+
+        if (!pass)
+        {
+            return 0;
+        }
+        
+        return 1;
+    }
 
     void read() {
         uint8_t command = MEASURE_CMD;
@@ -54,15 +67,15 @@ class sht40 : public sensor
         // Send measurement command
         if (i2c_write_blocking(m_i2c_s, m_addr_s, &command, 1, false) < 0) {
             printf("SHT40: I2C Write failed\n");
-            return -1;
+            return;
         }
 
         sleep_ms(10);  // Wait for measurement (max 8.2ms for high precision)
 
-        // Read 6 bytes of data into buffer
+        // Read the 6 bytes of data into buffer
         if (i2c_read_blocking(m_i2c_s, m_addr_s, buffer, 6, false) < 0) {
             printf("SHT40: I2C Read failed\n");
-            return -1;
+            return;
         }
 
         // Convert raw temperature data
@@ -74,5 +87,28 @@ class sht40 : public sensor
         float humidity = 100.0 * raw_humidity / 65535.0;
 
         printf("[%.3f s] Temperature: %.2f °C, Humidity: %.2f%%\n", get_time(), temperature, humidity);
+    }
+
+    bool write_and_read_test(){
+        uint8_t command = MEASURE_CMD;
+        uint8_t buffer[6];
+
+        // Send measurement command
+        if (i2c_write_blocking(m_i2c_s, m_addr_s, &command, 1, false) < 0) {
+            printf("SHT40 Test: I2C write of high-precision measurement command 0xFD failed\n");
+            return false;
+        }
+
+        sleep_ms(10);  // Wait for measurement (max 8.2ms for high precision)
+
+        // Read the 6 bytes of data into buffer
+        if (i2c_read_blocking(m_i2c_s, m_addr_s, buffer, 6, false) < 0) {
+            printf("SHT40 Test: I2C read of data failed (but write of command successful)\n");
+            return false;
+        }
+
+        printf("SHT40 I2C Test Successful\n");
+        return true;
+        
     }
 };

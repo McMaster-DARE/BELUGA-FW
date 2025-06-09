@@ -67,7 +67,7 @@ int main()
     imu     s_bno055("bno055", 0x28);
     tmp117 s_tmp117("tmp117", 0x48);
     apisqueen_thruster s_motor_driver("motor1", 0, 22); // GPIO pin 22 for motor driver
-    tmp117 s_sht40("sht40", 0x44);
+    sht40 s_sht40("sht40", 0x44);
 
 
     suite.add(&s_lps22hb);
